@@ -1370,7 +1370,8 @@ void update_out_oat_access_times(const char* apk_path, const char* out_oat_path)
 // If this is for a profile guided compilation, profile_was_updated will tell whether or not
 // the profile has changed.
 static void exec_dexoptanalyzer(const std::string& dex_file, const std::string& instruction_set,
-        const std::string& compiler_filter, bool profile_was_updated, bool downgrade) {
+        const std::string& compiler_filter, bool profile_was_updated, bool downgrade,
+        const char* class_loader_context) {
     static const char* DEXOPTANALYZER_BIN = "/system/bin/dexoptanalyzer";
     static const unsigned int MAX_INSTRUCTION_SET_LEN = 7;
 
@@ -1385,11 +1386,16 @@ static void exec_dexoptanalyzer(const std::string& dex_file, const std::string& 
     std::string compiler_filter_arg = "--compiler-filter=" + compiler_filter;
     const char* assume_profile_changed = "--assume-profile-changed";
     const char* downgrade_flag = "--downgrade";
+    std::string class_loader_context_arg = "--class-loader-context=";
+    if (class_loader_context != nullptr) {
+        class_loader_context_arg += class_loader_context;
+    }
 
     // program name, dex file, isa, filter, the final NULL
     const int argc = 5 +
         (profile_was_updated ? 1 : 0) +
-        (downgrade ? 1 : 0);
+        (downgrade ? 1 : 0) +
+        (class_loader_context != nullptr ? 1 : 0);
     const char* argv[argc];
     int i = 0;
     argv[i++] = DEXOPTANALYZER_BIN;
@@ -1401,6 +1407,9 @@ static void exec_dexoptanalyzer(const std::string& dex_file, const std::string& 
     }
     if (downgrade) {
         argv[i++] = downgrade_flag;
+    }
+    if (class_loader_context != nullptr) {
+        argv[i++] = class_loader_context_arg.c_str();
     }
     argv[i] = NULL;
 
@@ -1482,7 +1491,8 @@ static bool process_dexoptanalyzer_result(const std::string& dex_path, int resul
 static bool process_secondary_dex_dexopt(const char* original_dex_path, const char* pkgname,
         int dexopt_flags, const char* volume_uuid, int uid, const char* instruction_set,
         const char* compiler_filter, bool* is_public_out, int* dexopt_needed_out,
-        std::string* oat_dir_out, std::string* dex_path_out, bool downgrade) {
+        std::string* oat_dir_out, std::string* dex_path_out, bool downgrade,
+        const char* class_loader_context) {
     int storage_flag;
 
     if ((dexopt_flags & DEXOPT_STORAGE_CE) != 0) {
@@ -1552,7 +1562,7 @@ static bool process_secondary_dex_dexopt(const char* original_dex_path, const ch
         drop_capabilities(uid);
         // Run dexoptanalyzer to get dexopt_needed code.
         exec_dexoptanalyzer(dex_path, instruction_set, compiler_filter, profile_was_updated,
-                            downgrade);
+                            downgrade, class_loader_context);
         exit(DEXOPTANALYZER_BIN_EXEC_ERROR);
     }
 
@@ -1608,8 +1618,7 @@ int dexopt(const char* dex_path, uid_t uid, const char* pkgname, const char* ins
     if (is_secondary_dex) {
         if (process_secondary_dex_dexopt(dex_path, pkgname, dexopt_flags, volume_uuid, uid,
                 instruction_set, compiler_filter, &is_public, &dexopt_needed, &oat_dir_str,
-                &dex_real_path,
-                downgrade)) {
+                &dex_real_path, downgrade, class_loader_context)) {
             oat_dir = oat_dir_str.c_str();
             dex_path = dex_real_path.c_str();
             if (dexopt_needed == NO_DEXOPT_NEEDED) {
