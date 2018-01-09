@@ -106,6 +106,16 @@ cc_library {
     sanitize: {
         misc_undefined: ["integer"],
     },
+
+    arch: {
+        arm: {
+            instruction_set: "arm",
+        },
+    },
+
+    lto: {
+        full: true,
+    },
 }
 
 subdirs = ["tests"]
