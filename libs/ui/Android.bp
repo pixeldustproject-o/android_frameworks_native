@@ -106,10 +106,6 @@ cc_library_shared {
         "libnativebase_headers",
         "libhardware_headers",
     ],
-
-    lto: {
-        thin: true,
-    },
 }
 
 cc_library_headers {
