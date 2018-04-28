@@ -151,12 +151,6 @@ cc_library_shared {
     lto: {
         thin: true,
     },
-
-    arch: {
-        arm: {
-            instruction_set: "arm",
-        },
-    },
 }
 
 subdirs = ["tests"]
